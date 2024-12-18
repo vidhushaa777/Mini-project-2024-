@@ -1,0 +1,80 @@
+import nltk
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import string
+
+# Download necessary NLTK data
+nltk.download('stopwords')
+nltk.download('punkt')
+
+# Function to clean and preprocess the text (tokenization and removing stopwords)
+def preprocess_text(text):
+    # Convert to lowercase
+    text = text.lower()
+    # Remove punctuation
+    text = text.translate(str.maketrans('', '', string.punctuation))
+    # Tokenize the text
+    tokens = nltk.word_tokenize(text)
+    # Remove stopwords
+    stop_words = set(nltk.corpus.stopwords.words('english'))
+    tokens = [word for word in tokens if word not in stop_words]
+    return ' '.join(tokens)
+
+# Function to get student submissions from user input
+def get_student_submissions():
+    # Ask the user for the number of students
+    num_students = int(input("Enter the number of students: "))
+
+    # Create lists to store student names and submissions
+    students = []
+    submissions = []
+
+    # Get the name and submission from the user for each student
+    for i in range(num_students):
+        student_name = input(f"Enter the name of student {i + 1}: ")
+        submission = input(f"Enter the submission of {student_name}: ")
+        students.append(student_name)
+        submissions.append(submission)
+
+    # Return the data as a dictionary
+    return {'Student': students, 'Submission': submissions}
+
+# Get the student submissions
+data = get_student_submissions()
+
+# Convert the data to a DataFrame
+df = pd.DataFrame(data)
+
+# Preprocessing the submissions
+df['Processed'] = df['Submission'].apply(preprocess_text)
+
+# Vectorizing the text data using TF-IDF (Term Frequency-Inverse Document Frequency)
+vectorizer = TfidfVectorizer()
+tfidf_matrix = vectorizer.fit_transform(df['Processed'])
+
+# Computing cosine similarity between submissions
+cosine_similarities = cosine_similarity(tfidf_matrix)
+
+# Display the cosine similarity matrix
+print("\nCosine Similarity Matrix:")
+print(cosine_similarities)
+
+# Determine plagiarism (high similarity is considered plagiarism)
+threshold = 0.8  # Adjust the threshold as per requirement
+plagiarism_detected = []
+
+# Compare all pairs of students
+for i in range(len(cosine_similarities)):
+    for j in range(i + 1, len(cosine_similarities)):
+        if cosine_similarities[i, j] > threshold:
+            plagiarism_detected.append((df['Student'][i], df['Student'][j], cosine_similarities[i, j]))
+
+# Display the results
+if plagiarism_detected:
+    print("\nPotential Plagiarism Detected:")
+    for pair in plagiarism_detected:
+        print(f"Students {pair[0]} and {pair[1]} have a similarity of {pair[2]:.2f}")
+else:
+    print("\nNo plagiarism detected based on the threshold")
+    
